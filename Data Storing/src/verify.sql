@@ -25,15 +25,21 @@ UNION ALL SELECT 'department (kosong, sesuai spek)', COUNT(*) FROM department;
 
 \echo ''
 \echo '=== 2. SELECT ... FROM ... WHERE -- jurnal S1 terindeks Scopus ==='
+-- Mengambil snapshot TERBARU saja. Tanpa filter ini, setiap jurnal akan
+-- muncul sebanyak jumlah batch (3x), karena metric_snapshot menyimpan
+-- histori — perilaku yang benar untuk time-series, namun tidak informatif
+-- untuk query bukti penyimpanan.
 SELECT j.name,
        a.name          AS afiliasi,
        ms.impact,
-       ms.citations
+       ms.citations,
+       ms.captured_at::date AS tanggal_ukur
 FROM journal j
 JOIN accreditation ac  ON ac.accreditation_id = j.accreditation_id
 JOIN affiliation   a   ON a.affiliation_id    = j.affiliation_id
 JOIN metric_snapshot ms ON ms.journal_id      = j.journal_id
 WHERE ac.label = 'S1'
+  AND ms.captured_at = (SELECT MAX(captured_at) FROM metric_snapshot)
   AND EXISTS (
       SELECT 1 FROM journal_indexing ji
       JOIN indexing_body ib ON ib.body_id = ji.body_id
@@ -41,7 +47,6 @@ WHERE ac.label = 'S1'
   )
 ORDER BY ms.impact DESC NULLS LAST
 LIMIT 10;
-
 
 \echo ''
 \echo '=== 3. VALIDASI: distribusi akreditasi vs angka resmi SINTA ==='
