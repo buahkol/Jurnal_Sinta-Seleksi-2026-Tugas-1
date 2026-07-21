@@ -1,0 +1,42 @@
+[
+  {
+    "subject_id": 1,
+    "name": "Education"
+  },
+  {
+    "subject_id": 2,
+    "name": "Science"
+  },
+  {
+    "subject_id": 3,
+    "name": "Engineering"
+  },
+  {
+    "subject_id": 4,
+    "name": "Humanities"
+  },
+  {
+    "subject_id": 5,
+    "name": "Art"
+  },
+  {
+    "subject_id": 6,
+    "name": "Religion"
+  },
+  {
+    "subject_id": 7,
+    "name": "Economy"
+  },
+  {
+    "subject_id": 8,
+    "name": "Social"
+  },
+  {
+    "subject_id": 9,
+    "name": "Health"
+  },
+  {
+    "subject_id": 10,
+    "name": "Agriculture"
+  }
+]

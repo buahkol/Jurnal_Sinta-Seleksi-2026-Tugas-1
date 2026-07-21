@@ -1,0 +1,40 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+
+# --- Virtual environment (spek: "Binary tidak perlu di-upload") ---
+venv/
+env/
+.venv/
+
+# --- Secrets: password DB tidak boleh ter-commit ---
+.env
+*.env
+!.env.example
+
+# --- Scraper cache ---
+# Ribuan halaman HTML mentah, reproducible, tidak perlu di-upload.
+# Pola spesifik agar tidak ikut membuang tests/fixture_card.html
+cache/
+cache_profiles/
+cache_partitioned/
+
+# --- File kerja internal (bukan deliverable) ---
+convergent_state.json
+convergent_raw.json
+partitioned_raw.json
+
+# --- Logs ---
+*.log
+logs/
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Editors ---
+.vscode/
+.idea/
+*.swp
