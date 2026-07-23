@@ -10,8 +10,9 @@ DROP TABLE IF EXISTS metric_snapshot   CASCADE;
 DROP TABLE IF EXISTS journal_indexing  CASCADE;
 DROP TABLE IF EXISTS journal_subject   CASCADE;
 DROP TABLE IF EXISTS journal           CASCADE;
+DROP TABLE IF EXISTS affiliation_department CASCADE;
+DROP TABLE IF EXISTS author            CASCADE;
 DROP TABLE IF EXISTS department        CASCADE;
-DROP TABLE IF EXISTS publisher         CASCADE;
 DROP TABLE IF EXISTS affiliation       CASCADE;
 DROP TABLE IF EXISTS subject_area      CASCADE;
 DROP TABLE IF EXISTS indexing_body     CASCADE;
@@ -65,21 +66,41 @@ CREATE TABLE affiliation (
 );
 
 -- ---------------------------------------------------------------------
--- Extension entity: publisher
+-- Extension entity: author
 --
--- SINTA mendata penerbit sebagai entitas tersendiri (2.013 penerbit
--- menurut statistik situs), terpisah dari afiliasi. Tabel ini dibuat
--- lengkap dengan relasi 1:N ke journal -- satu penerbit menerbitkan
--- banyak jurnal.
+-- SINTA mendata peneliti sebagai entitas tersendiri pada halaman
+-- /authors, lengkap dengan SINTA ID, afiliasi, departemen, bidang
+-- keahlian, dan metrik (Scopus H-index, Google Scholar H-index).
 --
--- SENGAJA DIBIARKAN KOSONG (sesuai spek): pemetaan jurnal -> penerbit
--- tidak tersedia pada halaman listing yang di-scrape. Namun relasinya
--- tetap dimodelkan agar struktur domain lengkap dan siap diisi.
+-- Struktur tabel ini diturunkan dari hasil verifikasi langsung ke
+-- halaman profil author, contoh:
+--   https://sinta.kemdiktisaintek.go.id/authors/profile/5980682
+--
+-- SENGAJA DIBIARKAN KOSONG (sesuai spek). Halaman /authors berada di
+-- luar cakupan scraping proyek ini, yang hanya menyasar listing jurnal.
+-- Relasi author ke journal juga tidak dapat dimodelkan karena
+-- hubungannya bersifat tidak langsung melalui artikel, dan data artikel
+-- tidak tersedia pada halaman yang di-scrape.
+--
+-- author_id menggunakan SINTA ID asli (contoh: 5980682), konsisten
+-- dengan pola natural key pada journal dan affiliation.
 -- ---------------------------------------------------------------------
-CREATE TABLE publisher (
-    publisher_id SERIAL PRIMARY KEY,
-    name         TEXT NOT NULL,
-    country      VARCHAR(60)
+CREATE TABLE author (
+    author_id      INTEGER PRIMARY KEY,   -- SINTA ID
+    name           TEXT NOT NULL,
+    affiliation_id INTEGER,
+    department_id  INTEGER,
+    scopus_h_index INTEGER,
+    gs_h_index     INTEGER,
+
+    CONSTRAINT fk_author_affiliation
+        FOREIGN KEY (affiliation_id) REFERENCES affiliation(affiliation_id)
+        ON DELETE SET NULL,
+
+    CONSTRAINT chk_author_hindex CHECK (
+        (scopus_h_index IS NULL OR scopus_h_index >= 0) AND
+        (gs_h_index     IS NULL OR gs_h_index     >= 0)
+    )
 );
 
 CREATE TABLE journal (
@@ -88,9 +109,6 @@ CREATE TABLE journal (
     p_issn           VARCHAR(20),
     e_issn           VARCHAR(20),
     affiliation_id   INTEGER,
-    -- FK ke publisher. NULL untuk semua baris saat ini, karena data
-    -- pemetaan jurnal->penerbit tidak tersedia dari halaman listing.
-    publisher_id     INTEGER,
     -- NULLABLE, deliberately. The scraped data contains journals carrying
     -- no accreditation badge at all -- neither S1..S6 nor "Cancelled" nor
     -- "Not Accredited". Forcing NOT NULL here would mean either dropping
@@ -105,10 +123,6 @@ CREATE TABLE journal (
 
     CONSTRAINT fk_journal_affiliation
         FOREIGN KEY (affiliation_id) REFERENCES affiliation(affiliation_id)
-        ON DELETE SET NULL,
-
-    CONSTRAINT fk_journal_publisher
-        FOREIGN KEY (publisher_id) REFERENCES publisher(publisher_id)
         ON DELETE SET NULL,
 
     CONSTRAINT fk_journal_accreditation
@@ -235,16 +249,58 @@ CREATE TABLE metric_snapshot (
 -- so they are defensibly relevant and legitimately empty.
 -- ---------------------------------------------------------------------
 
--- (publisher dipindah ke atas, sebelum journal, karena journal
---  memiliki foreign key ke publisher)
+-- (author dipindah ke atas, sebelum journal, agar urutan CREATE TABLE
+--  mengikuti dependensi foreign key)
 
+-- Extension entity: department
+--
+-- Verifikasi ke halaman /departments menunjukkan bahwa departemen di
+-- SINTA BUKAN milik satu afiliasi. Satu program studi dengan nama dan
+-- kode yang sama dapat dimiliki banyak perguruan tinggi sekaligus.
+-- Contoh terverifikasi: "Administrasi Bisnis (S1)" dengan CODE 63211
+-- terdaftar pada 111 afiliasi berbeda.
+--
+-- Karena itu relasi affiliation-department dimodelkan sebagai
+-- MANY-TO-MANY melalui junction table affiliation_department, bukan
+-- 1:N sebagaimana asumsi awal.
+--
+-- Atribut level (D3/S1/S2/S3) dan code_prodi diturunkan dari tampilan
+-- halaman /departments yang menampilkan jenjang akademik dan kode prodi
+-- untuk setiap departemen.
+--
+-- SENGAJA DIBIARKAN KOSONG (sesuai spek). Halaman /departments berada
+-- di luar cakupan scraping.
+-- ---------------------------------------------------------------------
 CREATE TABLE department (
-    department_id  SERIAL PRIMARY KEY,
-    affiliation_id INTEGER NOT NULL,
-    name           TEXT NOT NULL,
+    department_id SERIAL PRIMARY KEY,
+    name          TEXT NOT NULL,
+    level         VARCHAR(5),      -- D3, D4, S1, S2, S3
+    code_prodi    VARCHAR(10),     -- contoh: 63211
 
-    CONSTRAINT fk_dept_affiliation
+    CONSTRAINT chk_dept_level
+        CHECK (level IS NULL OR level IN ('D1','D2','D3','D4','S1','S2','S3','Sp')),
+
+    CONSTRAINT uq_dept_name_level
+        UNIQUE (name, level)
+);
+
+-- ---------------------------------------------------------------------
+-- Junction M:N antara affiliation dan department.
+--
+-- Menggantikan asumsi awal bahwa departemen milik satu afiliasi.
+-- SENGAJA DIBIARKAN KOSONG (sesuai spek).
+-- ---------------------------------------------------------------------
+CREATE TABLE affiliation_department (
+    affiliation_id INTEGER NOT NULL,
+    department_id  INTEGER NOT NULL,
+
+    PRIMARY KEY (affiliation_id, department_id),
+
+    CONSTRAINT fk_ad_affiliation
         FOREIGN KEY (affiliation_id) REFERENCES affiliation(affiliation_id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_ad_department
+        FOREIGN KEY (department_id) REFERENCES department(department_id)
         ON DELETE CASCADE
 );
 
@@ -284,3 +340,13 @@ CREATE TRIGGER touch_journal_last_seen
 -- CREATE INDEX idx_journal_affiliation   ON journal(affiliation_id);
 -- CREATE INDEX idx_js_subject            ON journal_subject(subject_id);
 -- CREATE INDEX idx_ms_journal_time       ON metric_snapshot(journal_id, captured_at DESC);
+
+
+-- ---------------------------------------------------------------------
+-- FK author -> department ditambahkan di akhir karena tabel department
+-- dibuat setelah author dalam urutan skrip ini.
+-- ---------------------------------------------------------------------
+ALTER TABLE author
+    ADD CONSTRAINT fk_author_department
+    FOREIGN KEY (department_id) REFERENCES department(department_id)
+    ON DELETE SET NULL;

@@ -51,7 +51,7 @@ def main(dsn: str) -> None:
     affiliations = load_json("affiliations.json")
     subjects = load_json("subject_areas.json")
     journal_subject = load_json("journal_subject.json")
-    snapshots = load_json("metric_snapshots.json")
+    snapshots = load_json("metric_snapshots_20260713.json")
 
     print(f"read {len(journals):>6} journals")
     print(f"     {len(affiliations):>6} affiliations")

@@ -25,9 +25,27 @@ import psycopg2.extras
 DATA = pathlib.Path(__file__).parent.parent / "data"
 
 
-def main(dsn):
-    snaps = json.loads((DATA / "metric_snapshots_batch2.json").read_text(encoding="utf-8"))
-    print(f"batch-2 snapshots: {len(snaps):,}")
+def main(dsn, fname=None):
+    # Memuat satu file tertentu, atau seluruh file batch bila tidak
+    # disebutkan. Pola metric_snapshots_YYYYMMDD.json memungkinkan
+    # beberapa batch hidup berdampingan tanpa saling menimpa.
+    if fname:
+        files = [DATA / fname]
+    else:
+        files = sorted(DATA.glob("metric_snapshots_*.json"))
+        if not files:
+            files = [DATA / "metric_snapshots_batch2.json"]
+
+    snaps = []
+    for f in files:
+        if not f.exists():
+            print(f"  lewati (tidak ada): {f.name}")
+            continue
+        rows = json.loads(f.read_text(encoding="utf-8"))
+        print(f"  {f.name}: {len(rows):,} baris")
+        snaps.extend(rows)
+
+    print(f"total snapshot dimuat: {len(snaps):,}")
 
     conn = psycopg2.connect(dsn)
     cur = conn.cursor()
@@ -107,5 +125,8 @@ def main(dsn):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--dsn", default="postgresql://postgres:postgres@localhost/sinta_db")
+    ap.add_argument("--file", default=None,
+                    help="nama file JSON di folder data/. Jika kosong, "
+                         "seluruh file metric_snapshots_*.json akan dimuat.")
     args = ap.parse_args()
-    main(args.dsn)
+    main(args.dsn, args.file)

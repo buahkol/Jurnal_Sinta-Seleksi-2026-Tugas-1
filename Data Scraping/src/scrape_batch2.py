@@ -119,7 +119,8 @@ def main():
             "citations_5yr": int(r["citations_5yr"]) if r["citations_5yr"] is not None else None,
         } for jid, r in found.items()]
         DATA.mkdir(parents=True, exist_ok=True)
-        (DATA / "metric_snapshots_batch2.json").write_text(
+        date_tag_ck = datetime.now(timezone.utc).strftime("%Y%m%d")
+        (DATA / f"metric_snapshots_{date_tag_ck}.json").write_text(
             json.dumps(snaps_ckpt, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"  (checkpoint saved: {len(snaps_ckpt):,} snapshots)\n")
 
@@ -139,7 +140,12 @@ def main():
         })
 
     DATA.mkdir(parents=True, exist_ok=True)
-    out = DATA / "metric_snapshots_batch2.json"
+    # Nama file menyertakan tanggal agar batch berikutnya TIDAK menimpa
+    # batch sebelumnya. Versi awal script ini memakai nama tetap
+    # (metric_snapshots_batch2.json) sehingga data batch 17 Juli tertimpa
+    # oleh batch 21 Juli dan hanya tersisa di dalam database.
+    date_tag = datetime.now(timezone.utc).strftime("%Y%m%d")
+    out = DATA / f"metric_snapshots_{date_tag}.json"
     out.write_text(json.dumps(snapshots, indent=2, ensure_ascii=False),
                    encoding="utf-8")
 

@@ -19,8 +19,9 @@ UNION ALL SELECT 'journal_indexing', COUNT(*) FROM journal_indexing
 UNION ALL SELECT 'metric_snapshot',  COUNT(*) FROM metric_snapshot
 UNION ALL SELECT 'accreditation',    COUNT(*) FROM accreditation
 UNION ALL SELECT 'indexing_body',    COUNT(*) FROM indexing_body
-UNION ALL SELECT 'publisher (kosong, sesuai spek)',  COUNT(*) FROM publisher
-UNION ALL SELECT 'department (kosong, sesuai spek)', COUNT(*) FROM department;
+UNION ALL SELECT 'author (kosong, sesuai spek)',     COUNT(*) FROM author
+UNION ALL SELECT 'department (kosong, sesuai spek)', COUNT(*) FROM department
+UNION ALL SELECT 'affiliation_department (kosong)',  COUNT(*) FROM affiliation_department;
 
 
 \echo ''
